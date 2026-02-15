@@ -680,6 +680,8 @@
   // ── INIT ──────────────────────────────────────────────────
   async function init() {
     document.getElementById('entry-date').valueAsDate = new Date();
+    document.getElementById('entry-start').value = '09:00';
+    document.getElementById('entry-end').value = '11:00';
     setupTimePreview();
     await loadShifts();
   }
@@ -699,6 +701,7 @@
     };
     document.getElementById('entry-start').addEventListener('change', update);
     document.getElementById('entry-end').addEventListener('change', update);
+    update(); // show preview immediately with default values
   }
 
   // ── LOAD SHIFTS ───────────────────────────────────────────
@@ -733,8 +736,8 @@
         body: JSON.stringify({ shift_date: date, start_time: start, end_time: end, note })
       });
       if (!res.ok) throw new Error();
-      document.getElementById('entry-start').value = '';
-      document.getElementById('entry-end').value = '';
+      document.getElementById('entry-start').value = '09:00';
+      document.getElementById('entry-end').value = '11:00';
       document.getElementById('entry-note').value = '';
       document.getElementById('hours-preview').textContent = '';
       showToast('Shift logged ✓', 'success');
