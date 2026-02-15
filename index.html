@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Libby's Timesheet</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --cream: #FAF7F2;
+      --ink: #1A1612;
+      --accent: #C8461E;
+      --blue: #1B4F8A;
+      --blue-light: #D6E4F7;
+      --mid: #7A6F65;
+      --border: #DDD6CE;
+      --card: #FFFFFF;
+      --green: #1A7A4A;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* ── LOGIN ── */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .login-card h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .login-subtitle {
+      font-size: 0.72rem;
+      color: var(--mid);
+      letter-spacing: 0.06em;
+      margin-bottom: 2rem;
+    }
+
+    .login-error {
+      font-size: 0.73rem;
+      color: var(--accent);
+      margin-bottom: 0.85rem;
+      display: none;
+    }
+
+    /* ── LAYOUT ── */
+    header {
+      max-width: 700px;
+      margin: 0 auto 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--ink);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.05;
+    }
+
+    header h1 em { font-style: italic; color: var(--accent); }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .last-updated {
+      font-size: 0.68rem;
+      color: var(--mid);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .last-updated span { color: var(--accent); }
+
+    .role-badge {
+      display: inline-block;
+      margin-top: 0.4rem;
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.6rem;
+      border: 1px solid var(--border);
+      color: var(--mid);
+    }
+
+    main {
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* ── SUMMARY ── */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1.5px solid var(--border);
+    }
+
+    .summary-cell {
+      background: var(--cream);
+      padding: 1.1rem 1rem;
+    }
+
+    .summary-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--mid);
+      margin-bottom: 0.3rem;
+    }
+
+    .summary-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem;
+    }
+
+    .summary-value.red { color: var(--accent); }
+    .summary-value.blue { color: var(--blue); }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      padding: 1.75rem;
+    }
+
+    .card-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.2rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── FORM ── */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-bottom: 0.85rem;
+    }
+
+    @media (max-width: 460px) { .form-row { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
+
+    label {
+      font-size: 0.64rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--mid);
+    }
+
+    input[type="date"],
+    input[type="time"],
+    input[type="password"],
+    input[type="text"] {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.88rem;
+      padding: 0.6rem 0.8rem;
+      border: 1.5px solid var(--border);
+      background: var(--cream);
+      color: var(--ink);
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+      border-radius: 0;
+      width: 100%;
+    }
+
+    input:focus { outline: none; border-color: var(--accent); background: #fff; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      padding: 0.72rem 1.4rem;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      border-radius: 0;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--ink); color: var(--cream); }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-blue { background: var(--blue); color: #fff; }
+    .btn-blue:hover { opacity: 0.88; }
+    .btn-ghost { background: transparent; color: var(--mid); border: 1.5px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+    .btn-danger { background: transparent; color: var(--accent); border: none; font-size: 0.68rem; padding: 0.25rem 0.4rem; letter-spacing: 0.04em; }
+    .btn-danger:hover { opacity: 0.7; }
+    .btn-full { width: 100%; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1.5px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+
+    .tab {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      padding: 0.55rem 1rem;
+      border: none;
+      background: transparent;
+      color: var(--mid);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1.5px;
+    }
+
+    .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+    /* ── TABLE ── */
+    .log-empty {
+      color: var(--mid);
+      font-size: 0.78rem;
+      text-align: center;
+      padding: 2rem;
+      letter-spacing: 0.04em;
+    }
+
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .log-table thead tr { border-bottom: 1.5px solid var(--ink); }
+
+    .log-table th {
+      font-size: 0.61rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--mid);
+      padding: 0.4rem 0.5rem 0.7rem;
+      text-align: left;
+    }
+
+    .log-table td {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .log-table tr:last-child td { border-bottom: none; }
+    .log-table .pay { color: var(--accent); font-weight: 500; }
+    .log-table .note-cell { color: var(--mid); font-size: 0.73rem; }
+
+    .submitted-badge {
+      font-size: 0.6rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      background: var(--blue-light);
+      color: var(--blue);
+    }
+
+    .unsubmitted-badge {
+      font-size: 0.6rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      background: #FFF3CD;
+      color: #856404;
+    }
+
+    /* ── BLOCK PROGRESS ── */
+    .block-progress {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: var(--blue-light);
+      border: 1px solid #B8D4EE;
+      margin-bottom: 1.25rem;
+    }
+
+    .block-dots {
+      display: flex;
+      gap: 0.3rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .dot.filled { background: var(--blue); }
+    .dot.ready { background: var(--green); }
+
+    .block-text {
+      font-size: 0.72rem;
+      color: var(--blue);
+      letter-spacing: 0.04em;
+    }
+
+    .block-text strong { font-weight: 500; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(4rem);
+      background: var(--ink);
+      color: var(--cream);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.76rem;
+      letter-spacing: 0.06em;
+      padding: 0.7rem 1.4rem;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { background: var(--green); }
+    .toast.error { background: var(--accent); }
+
+    /* ── INVOICE OVERLAY ── */
+    #invoice-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,22,18,0.8);
+      z-index: 2000;
+      padding: 1.5rem 1rem;
+      overflow-y: auto;
+    }
+
+    #invoice-overlay.show { display: block; }
+
+    .invoice-toolbar {
+      max-width: 720px;
+      margin: 0 auto 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ── INVOICE DOCUMENT (matches employer format) ── */
+    .invoice-doc {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    .inv-main {
+      display: grid;
+      grid-template-columns: 1fr 260px;
+    }
+
+    /* Left: shift rows */
+    .inv-rows-section { padding: 0; }
+
+    .inv-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .inv-table th {
+      background: #1B4F8A;
+      color: #fff;
+      font-weight: 600;
+      padding: 6px 8px;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .inv-table th:first-child { text-align: left; }
+
+    .inv-table td {
+      padding: 6px 8px;
+      text-align: center;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .inv-table td:first-child { text-align: left; }
+
+    .inv-table tr:nth-child(odd) td { background: #D6E4F7; }
+    .inv-table tr:nth-child(even) td { background: #EBF2FB; }
+
+    /* Right: summary panel */
+    .inv-panel {
+      border-left: 2px solid #1B4F8A;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .inv-person {
+      padding: 1rem;
+      font-size: 12px;
+      color: #1B4F8A;
+      line-height: 1.7;
+      border-bottom: 1px solid #D6E4F7;
+    }
+
+    .inv-person strong { display: block; }
+
+    .inv-total-banner {
+      background: #E02020;
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      text-align: center;
+      padding: 0.6rem;
+      line-height: 1.4;
+    }
+
+    .inv-total-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-top: 2px solid #1B4F8A;
+    }
+
+    .inv-total-cell {
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #1B4F8A;
+      border-right: 1px solid #D6E4F7;
+    }
+
+    .inv-total-cell:last-child { border-right: none; }
+    .inv-total-cell small { display: block; font-size: 10px; font-weight: 400; color: #7A6F65; }
+
+    .inv-employer {
+      padding: 1rem;
+      font-size: 11px;
+      color: #1B4F8A;
+      line-height: 1.7;
+      text-align: center;
+      border-top: 1px solid #D6E4F7;
+      flex: 1;
+    }
+
+    .inv-employer strong { display: block; font-size: 12px; }
+
+    .inv-bank {
+      padding: 0.75rem 1rem;
+      font-size: 11px;
+      color: #1B4F8A;
+      text-align: center;
+      border-top: 2px solid #1B4F8A;
+      line-height: 1.8;
+    }
+
+    .inv-bank strong { color: #1A1612; }
+
+    /* ── LOADING ── */
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.75rem;
+      color: var(--mid);
+      letter-spacing: 0.06em;
+    }
+
+    #app-screen { display: none; }
+
+    @media print {
+      body > *:not(#invoice-overlay) { display: none !important; }
+      #invoice-overlay { display: block !important; position: static; background: white; padding: 0; }
+      .invoice-toolbar { display: none !important; }
+      .invoice-doc { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h2>My <em style="font-style:italic;color:var(--accent)">Hours</em></h2>
+    <div class="login-subtitle">Enter your PIN to continue</div>
+    <div class="login-error" id="login-error">Incorrect PIN — try again.</div>
+    <div class="field" style="margin-bottom:1rem">
+      <label>PIN</label>
+      <input type="password" id="pin-input" placeholder="••••" maxlength="8" />
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Enter</button>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app-screen">
+  <header>
+    <h1>My <em>Hours</em></h1>
+    <div class="header-right">
+      <div class="last-updated" id="last-updated-line">—</div>
+      <div class="role-badge" id="role-badge">—</div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Summary -->
+    <div class="summary">
+      <div class="summary-cell">
+        <div class="summary-label">Unsubmitted shifts</div>
+        <div class="summary-value" id="stat-pending">—</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">Unsubmitted hours</div>
+        <div class="summary-value blue" id="stat-hours">—</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">Unsubmitted pay</div>
+        <div class="summary-value red" id="stat-pay">—</div>
+      </div>
+    </div>
+
+    <!-- Block progress -->
+    <div class="block-progress" id="block-progress" style="display:none">
+      <div class="block-dots" id="block-dots"></div>
+      <div class="block-text" id="block-text"></div>
+    </div>
+
+    <!-- Log shift (daughter only) -->
+    <div class="card" id="log-card">
+      <div class="card-title">Log a Shift</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Date Worked</label>
+          <input type="date" id="entry-date" />
+        </div>
+        <div class="field">
+          <label>Start Time</label>
+          <input type="time" id="entry-start" />
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:1rem">
+        <div class="field">
+          <label>End Time</label>
+          <input type="time" id="entry-end" />
+        </div>
+        <div class="field">
+          <label>Note (optional)</label>
+          <input type="text" id="entry-note" placeholder="e.g. Saturday cover" maxlength="80" />
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="addShift()">+ Add Shift</button>
+        <span id="hours-preview" style="font-size:0.75rem;color:var(--mid)"></span>
+      </div>
+    </div>
+
+    <!-- Shifts log -->
+    <div class="card">
+      <div class="card-title">Shifts</div>
+      <div class="tabs">
+        <button class="tab active" onclick="setTab('pending', this)">Pending</button>
+        <button class="tab" onclick="setTab('submitted', this)">Submitted</button>
+        <button class="tab" onclick="setTab('all', this)">All</button>
+      </div>
+      <div id="log-container"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Generate invoice -->
+    <div class="card" id="invoice-card">
+      <div class="card-title">Generate Pay Form</div>
+      <p style="font-size:0.78rem;color:var(--mid);margin-bottom:1.25rem;line-height:1.6">
+        Generates a timesheet for the next <strong style="color:var(--ink)">8 unsubmitted shifts</strong> at <strong style="color:var(--ink)">£15/hr</strong>. After generating, those shifts will be marked as submitted.
+      </p>
+      <div id="invoice-ready-msg" style="display:none;font-size:0.78rem;color:var(--mid);margin-bottom:1rem"></div>
+      <button class="btn btn-blue" onclick="generateInvoice()" id="generate-btn">Generate Timesheet</button>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── INVOICE OVERLAY ── -->
+<div id="invoice-overlay">
+  <div class="invoice-toolbar">
+    <button class="btn btn-ghost" onclick="closeInvoice()">✕ Close</button>
+    <div style="display:flex;gap:0.5rem">
+      <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn btn-blue" id="mark-submitted-btn" onclick="markSubmitted()">Mark as Submitted</button>
+    </div>
+  </div>
+  <div class="invoice-doc" id="invoice-doc"></div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ══════════════════════════════════════════════════════════
+  // CONFIG — update API_URL after deploying to Railway
+  // ══════════════════════════════════════════════════════════
+  const API_URL = 'timesheet-backend-production-22cd.up.railway.app'; // e.g. https://timesheet-backend.up.railway.app
+
+  const PINS = { '1311': 'daughter', '1987': 'parent' };
+
+  let userRole = null;
+  let allShifts = [];
+  let currentTab = 'pending';
+  let pendingInvoiceIds = [];
+
+  // ── LOGIN ─────────────────────────────────────────────────
+  document.getElementById('pin-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  async function doLogin() {
+    const pin = document.getElementById('pin-input').value;
+    try {
+      const res = await fetch(`${API_URL}/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin })
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      userRole = data.role;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-screen').style.display = 'block';
+      document.getElementById('role-badge').textContent = userRole === 'parent' ? 'View only' : 'Libby';
+
+      // Parent is view-only — hide log & generate cards
+      if (userRole === 'parent') {
+        document.getElementById('log-card').style.display = 'none';
+        document.getElementById('invoice-card').style.display = 'none';
+      }
+
+      init();
+    } catch {
+      const err = document.getElementById('login-error');
+      err.style.display = 'block';
+      document.getElementById('pin-input').value = '';
+    }
+  }
+
+  // ── INIT ──────────────────────────────────────────────────
+  async function init() {
+    document.getElementById('entry-date').valueAsDate = new Date();
+    setupTimePreview();
+    await loadShifts();
+  }
+
+  // Live hours preview while typing times
+  function setupTimePreview() {
+    const update = () => {
+      const s = document.getElementById('entry-start').value;
+      const e = document.getElementById('entry-end').value;
+      const el = document.getElementById('hours-preview');
+      if (!s || !e) { el.textContent = ''; return; }
+      const start = new Date(`2000-01-01T${s}`);
+      const end = new Date(`2000-01-01T${e}`);
+      const hours = (end - start) / 3600000;
+      if (hours <= 0) { el.textContent = '⚠ End must be after start'; return; }
+      el.textContent = `${hours.toFixed(2)}h = £${(hours * 15).toFixed(2)}`;
+    };
+    document.getElementById('entry-start').addEventListener('change', update);
+    document.getElementById('entry-end').addEventListener('change', update);
+  }
+
+  // ── LOAD SHIFTS ───────────────────────────────────────────
+  async function loadShifts() {
+    try {
+      const res = await fetch(`${API_URL}/shifts`);
+      allShifts = await res.json();
+      renderAll();
+    } catch {
+      showToast('Could not connect to server', 'error');
+    }
+  }
+
+  // ── ADD SHIFT ─────────────────────────────────────────────
+  async function addShift() {
+    const date = document.getElementById('entry-date').value;
+    const start = document.getElementById('entry-start').value;
+    const end = document.getElementById('entry-end').value;
+    const note = document.getElementById('entry-note').value.trim();
+
+    if (!date) { showToast('Please select a date', 'error'); return; }
+    if (!start || !end) { showToast('Please enter start and end times', 'error'); return; }
+
+    const startD = new Date(`2000-01-01T${start}`);
+    const endD = new Date(`2000-01-01T${end}`);
+    if (endD <= startD) { showToast('End time must be after start time', 'error'); return; }
+
+    try {
+      const res = await fetch(`${API_URL}/shifts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shift_date: date, start_time: start, end_time: end, note })
+      });
+      if (!res.ok) throw new Error();
+      document.getElementById('entry-start').value = '';
+      document.getElementById('entry-end').value = '';
+      document.getElementById('entry-note').value = '';
+      document.getElementById('hours-preview').textContent = '';
+      showToast('Shift logged ✓', 'success');
+      await loadShifts();
+    } catch {
+      showToast('Failed to save shift', 'error');
+    }
+  }
+
+  // ── DELETE SHIFT ──────────────────────────────────────────
+  async function deleteShift(id) {
+    try {
+      await fetch(`${API_URL}/shifts/${id}`, { method: 'DELETE' });
+      showToast('Shift removed');
+      await loadShifts();
+    } catch {
+      showToast('Failed to delete', 'error');
+    }
+  }
+
+  // ── RENDER ALL ────────────────────────────────────────────
+  function renderAll() {
+    renderSummary();
+    renderBlockProgress();
+    renderLog();
+  }
+
+  function renderSummary() {
+    const pending = allShifts.filter(s => !s.submitted);
+    const totalH = pending.reduce((a, s) => a + parseFloat(s.hours_worked), 0);
+    const totalP = pending.reduce((a, s) => a + parseFloat(s.pay), 0);
+
+    document.getElementById('stat-pending').textContent = pending.length;
+    document.getElementById('stat-hours').textContent = totalH.toFixed(1) + 'h';
+    document.getElementById('stat-pay').textContent = '£' + totalP.toFixed(2);
+
+    if (allShifts.length > 0) {
+      const latest = allShifts[0];
+      document.getElementById('last-updated-line').innerHTML =
+        `Last shift: <span>${formatDate(latest.shift_date)}</span>`;
+    }
+  }
+
+  function renderBlockProgress() {
+    const pending = allShifts.filter(s => !s.submitted);
+    const count = pending.length;
+    const bp = document.getElementById('block-progress');
+
+    if (count === 0) { bp.style.display = 'none'; return; }
+    bp.style.display = 'flex';
+
+    const dots = document.getElementById('block-dots');
+    const filled = Math.min(count, 8);
+    const ready = count >= 8;
+    dots.innerHTML = Array.from({length: 8}, (_, i) => `
+      <div class="dot ${i < filled ? (ready ? 'ready' : 'filled') : ''}"></div>
+    `).join('');
+
+    const bt = document.getElementById('block-text');
+    if (ready) {
+      bt.innerHTML = `<strong>Ready to submit!</strong> 8 shifts logged — generate the pay form below.`;
+    } else {
+      bt.innerHTML = `<strong>${filled}/8 shifts</strong> logged — ${8 - filled} more until ready to submit.`;
+    }
+
+    // Update generate button
+    const genBtn = document.getElementById('generate-btn');
+    const readyMsg = document.getElementById('invoice-ready-msg');
+    if (ready) {
+      genBtn.disabled = false;
+      genBtn.style.opacity = '1';
+      readyMsg.style.display = 'none';
+    } else {
+      genBtn.disabled = true;
+      genBtn.style.opacity = '0.4';
+      readyMsg.style.display = 'block';
+      readyMsg.textContent = `${8 - count} more shift${8 - count !== 1 ? 's' : ''} needed before you can generate.`;
+    }
+  }
+
+  function setTab(tab, btn) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderLog();
+  }
+
+  function renderLog() {
+    const container = document.getElementById('log-container');
+
+    let filtered = allShifts;
+    if (currentTab === 'pending') filtered = allShifts.filter(s => !s.submitted);
+    if (currentTab === 'submitted') filtered = allShifts.filter(s => s.submitted);
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="log-empty">No ${currentTab} shifts.</div>`;
+      return;
+    }
+
+    const canDelete = userRole === 'daughter';
+
+    const rows = filtered.map(s => `
+      <tr>
+        <td>${formatDate(s.shift_date)}</td>
+        <td>${formatTime(s.start_time)}</td>
+        <td>${formatTime(s.end_time)}</td>
+        <td>${parseFloat(s.hours_worked).toFixed(2)}h</td>
+        <td class="pay">£${parseFloat(s.pay).toFixed(2)}</td>
+        <td style="font-size:0.72rem;color:var(--mid)">${s.note || '—'}</td>
+        <td>
+          ${s.submitted
+            ? '<span class="submitted-badge">Sent</span>'
+            : '<span class="unsubmitted-badge">Pending</span>'
+          }
+        </td>
+        ${canDelete && !s.submitted
+          ? `<td><button class="btn btn-danger" onclick="deleteShift(${s.id})">✕</button></td>`
+          : '<td></td>'
+        }
+      </tr>
+    `).join('');
+
+    container.innerHTML = `
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Start</th><th>End</th><th>Hours</th>
+            <th>Pay</th><th>Note</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  // ── GENERATE INVOICE ──────────────────────────────────────
+  async function generateInvoice() {
+    try {
+      const res = await fetch(`${API_URL}/shifts/next-block`);
+      const shifts = await res.json();
+
+      if (shifts.length < 8) {
+        showToast('Need 8 unsubmitted shifts', 'error');
+        return;
+      }
+
+      pendingInvoiceIds = shifts.map(s => s.id);
+
+      const totalH = shifts.reduce((a, s) => a + parseFloat(s.hours_worked), 0);
+      const totalP = shifts.reduce((a, s) => a + parseFloat(s.pay), 0);
+
+      const startDate = formatDate(shifts[0].shift_date);
+      const endDate = formatDate(shifts[shifts.length - 1].shift_date);
+
+      const rows = shifts.map(s => `
+        <tr>
+          <td>${formatDate(s.shift_date)}</td>
+          <td>${formatTime(s.start_time)}</td>
+          <td>${formatTime(s.end_time)}</td>
+          <td>${parseFloat(s.hours_worked).toFixed(1)}</td>
+          <td>£${parseFloat(s.pay).toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('invoice-doc').innerHTML = `
+        <div class="inv-main">
+          <div class="inv-rows-section">
+            <table class="inv-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Hours</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+
+          <div class="inv-panel">
+            <div class="inv-person">
+              <strong>Name:</strong> Libby Morgan<br/>
+              <strong>Address:</strong> 38, Burton Close,<br/>
+              Allesely, Coventry,<br/>CV5 9EG
+            </div>
+
+            <div class="inv-total-banner">
+              ${startDate} – ${endDate}<br/>Total Pay Due
+            </div>
+
+            <div class="inv-total-grid">
+              <div class="inv-total-cell">
+                <small>Hours</small>
+                ${totalH.toFixed(1)}h
+              </div>
+              <div class="inv-total-cell">
+                <small>Rate</small>
+                @ £15 PH
+              </div>
+              <div class="inv-total-cell" style="color:var(--accent)">
+                <small>Total</small>
+                £${totalP.toFixed(2)}
+              </div>
+            </div>
+
+            <div class="inv-employer">
+              <strong>Invoice To:</strong><br/>
+              Florence The Donke<br/>
+              Holly Grange<br/>
+              Holly Lane<br/>
+              Balsall Common<br/>
+              CV7 7EB
+            </div>
+
+            <div class="inv-bank">
+              <strong>Bank:</strong> Monzo<br/>
+              <strong>Sort Code:</strong> 04-00-03<br/>
+              <strong>Account No:</strong> 01719980
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('invoice-overlay').classList.add('show');
+    } catch {
+      showToast('Failed to load shifts', 'error');
+    }
+  }
+
+  async function markSubmitted() {
+    if (!pendingInvoiceIds.length) return;
+    try {
+      await fetch(`${API_URL}/shifts/mark-submitted`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: pendingInvoiceIds })
+      });
+      pendingInvoiceIds = [];
+      document.getElementById('mark-submitted-btn').textContent = '✓ Marked as Submitted';
+      document.getElementById('mark-submitted-btn').disabled = true;
+      showToast('Shifts marked as submitted ✓', 'success');
+      await loadShifts();
+    } catch {
+      showToast('Failed to mark submitted', 'error');
+    }
+  }
+
+  function closeInvoice() {
+    document.getElementById('invoice-overlay').classList.remove('show');
+    document.getElementById('mark-submitted-btn').textContent = 'Mark as Submitted';
+    document.getElementById('mark-submitted-btn').disabled = false;
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function formatTime(timeStr) {
+    if (!timeStr) return '—';
+    const [h, m] = timeStr.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 || 12;
+    return `${h12}:${m} ${ampm}`;
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (type ? ` ${type}` : '') + ' show';
+    setTimeout(() => { t.className = 'toast'; }, 2800);
+  }
+
+  // Print styles
+  const ps = document.createElement('style');
+  ps.textContent = `@media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { background: white !important; padding: 0 !important; }
+    #login-screen, #app-screen, .invoice-toolbar { display: none !important; }
+    #invoice-overlay { display: block !important; position: static !important; background: white !important; padding: 0 !important; }
+    .invoice-doc { max-width: 100% !important; }
+  }`;
+  document.head.appendChild(ps);
+</script>
+</body>
+</html>
