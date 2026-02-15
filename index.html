@@ -839,6 +839,63 @@
 
     const canDelete = userRole === 'daughter';
 
+    // For submitted tab — group into blocks of 8 with a Reprint button each
+    if (currentTab === 'submitted') {
+      // submitted shifts arrive newest-first; reverse to group chronologically
+      const chrono = [...filtered].reverse();
+      const blocks = [];
+      for (let i = 0; i < chrono.length; i += 8) blocks.push(chrono.slice(i, i + 8));
+
+      container.innerHTML = blocks.map((block, bi) => {
+        const blockNum = blocks.length - bi; // newest block = highest number
+        const totalH = block.reduce((a, s) => a + parseFloat(s.hours_worked), 0);
+        const totalP = block.reduce((a, s) => a + parseFloat(s.pay), 0);
+        const startD = formatDate(block[0].shift_date);
+        const endD   = formatDate(block[block.length - 1].shift_date);
+
+        const rows = block.map(s => `
+          <tr>
+            <td>${formatDate(s.shift_date)}</td>
+            <td>${formatTime(s.start_time)}</td>
+            <td>${formatTime(s.end_time)}</td>
+            <td>${parseFloat(s.hours_worked).toFixed(2)}h</td>
+            <td class="pay">£${parseFloat(s.pay).toFixed(2)}</td>
+            <td style="font-size:0.72rem;color:var(--mid)">${s.note || '—'}</td>
+            <td><span class="submitted-badge">Sent</span></td>
+            <td></td>
+          </tr>
+        `).join('');
+
+        // Store block data for reprint via a data attribute (JSON encoded)
+        const blockData = encodeURIComponent(JSON.stringify(block));
+
+        return `
+          <div style="margin-bottom:1.5rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">
+              <div>
+                <span style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid)">Block ${blockNum}</span>
+                <span style="font-size:0.75rem;color:var(--ink);margin-left:0.75rem">${startD} – ${endD}</span>
+                <span style="font-size:0.75rem;color:var(--accent);margin-left:0.75rem">£${totalP.toFixed(2)}</span>
+              </div>
+              <button class="btn btn-ghost" style="font-size:0.65rem;padding:0.35rem 0.75rem"
+                onclick="reprintBlock('${blockData}')">↻ Reprint</button>
+            </div>
+            <table class="log-table">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Start</th><th>End</th><th>Hours</th>
+                  <th>Pay</th><th>Note</th><th>Status</th><th></th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      }).join('');
+      return;
+    }
+
+    // Pending / All tabs — flat table
     const rows = filtered.map(s => `
       <tr>
         <td>${formatDate(s.shift_date)}</td>
@@ -873,97 +930,81 @@
     `;
   }
 
-  // ── GENERATE INVOICE ──────────────────────────────────────
+  // Reprint a previously submitted block
+  function reprintBlock(encodedData) {
+    const shifts = JSON.parse(decodeURIComponent(encodedData));
+    buildAndShowInvoice(shifts, false); // false = already submitted, hide mark-submitted btn
+  }
+
+  // ── SHARED INVOICE BUILDER ────────────────────────────────
+  function buildAndShowInvoice(shifts, isNew) {
+    const totalH = shifts.reduce((a, s) => a + parseFloat(s.hours_worked), 0);
+    const totalP = shifts.reduce((a, s) => a + parseFloat(s.pay), 0);
+    const startDate = formatDate(shifts[0].shift_date);
+    const endDate = formatDate(shifts[shifts.length - 1].shift_date);
+
+    const rows = shifts.map(s => `
+      <tr>
+        <td>${formatDate(s.shift_date)}</td>
+        <td>${formatTime(s.start_time)}</td>
+        <td>${formatTime(s.end_time)}</td>
+        <td>${parseFloat(s.hours_worked).toFixed(1)}</td>
+        <td>£${parseFloat(s.pay).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('invoice-doc').innerHTML = `
+      <div class="inv-main">
+        <div class="inv-rows-section">
+          <table class="inv-table">
+            <thead>
+              <tr><th>Date</th><th>Start</th><th>End</th><th>Hours</th><th>Amount</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="inv-panel">
+          <div class="inv-person">
+            <strong>Name:</strong> Libby Morgan<br/>
+            <strong>Address:</strong> 38, Burton Close,<br/>
+            Allesely, Coventry,<br/>CV5 9EG
+          </div>
+          <div class="inv-total-banner">${startDate} – ${endDate}<br/>Total Pay Due</div>
+          <div class="inv-total-grid">
+            <div class="inv-total-cell"><small>Hours</small>${totalH.toFixed(1)}h</div>
+            <div class="inv-total-cell"><small>Rate</small>@ £15 PH</div>
+            <div class="inv-total-cell" style="color:var(--accent)"><small>Total</small>£${totalP.toFixed(2)}</div>
+          </div>
+          <div class="inv-employer">
+            <strong>Invoice To:</strong><br/>
+            Florence The Donke<br/>Holly Grange<br/>Holly Lane<br/>Balsall Common<br/>CV7 7EB
+          </div>
+          <div class="inv-bank">
+            <strong>Bank:</strong> Monzo<br/>
+            <strong>Sort Code:</strong> 04-00-03<br/>
+            <strong>Account No:</strong> 01719980
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Hide "Mark as Submitted" when reprinting an already-submitted block
+    const markBtn = document.getElementById('mark-submitted-btn');
+    markBtn.style.display = isNew ? 'inline-block' : 'none';
+    markBtn.textContent = 'Mark as Submitted';
+    markBtn.disabled = false;
+
+    document.getElementById('invoice-overlay').classList.add('show');
+  }
+
+  // ── GENERATE INVOICE (new block) ─────────────────────────
   async function generateInvoice() {
     try {
       const res = await fetch(`${API_URL}/shifts/next-block`);
       const shifts = await res.json();
-
-      if (shifts.length < 8) {
-        showToast('Need 8 unsubmitted shifts', 'error');
-        return;
-      }
-
+      if (shifts.length < 8) { showToast('Need 8 unsubmitted shifts', 'error'); return; }
       pendingInvoiceIds = shifts.map(s => s.id);
-
-      const totalH = shifts.reduce((a, s) => a + parseFloat(s.hours_worked), 0);
-      const totalP = shifts.reduce((a, s) => a + parseFloat(s.pay), 0);
-
-      const startDate = formatDate(shifts[0].shift_date);
-      const endDate = formatDate(shifts[shifts.length - 1].shift_date);
-
-      const rows = shifts.map(s => `
-        <tr>
-          <td>${formatDate(s.shift_date)}</td>
-          <td>${formatTime(s.start_time)}</td>
-          <td>${formatTime(s.end_time)}</td>
-          <td>${parseFloat(s.hours_worked).toFixed(1)}</td>
-          <td>£${parseFloat(s.pay).toFixed(2)}</td>
-        </tr>
-      `).join('');
-
-      document.getElementById('invoice-doc').innerHTML = `
-        <div class="inv-main">
-          <div class="inv-rows-section">
-            <table class="inv-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th>Hours</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-
-          <div class="inv-panel">
-            <div class="inv-person">
-              <strong>Name:</strong> Libby Morgan<br/>
-              <strong>Address:</strong> 38, Burton Close,<br/>
-              Allesely, Coventry,<br/>CV5 9EG
-            </div>
-
-            <div class="inv-total-banner">
-              ${startDate} – ${endDate}<br/>Total Pay Due
-            </div>
-
-            <div class="inv-total-grid">
-              <div class="inv-total-cell">
-                <small>Hours</small>
-                ${totalH.toFixed(1)}h
-              </div>
-              <div class="inv-total-cell">
-                <small>Rate</small>
-                @ £15 PH
-              </div>
-              <div class="inv-total-cell" style="color:var(--accent)">
-                <small>Total</small>
-                £${totalP.toFixed(2)}
-              </div>
-            </div>
-
-            <div class="inv-employer">
-              <strong>Invoice To:</strong><br/>
-              Florence The Donke<br/>
-              Holly Grange<br/>
-              Holly Lane<br/>
-              Balsall Common<br/>
-              CV7 7EB
-            </div>
-
-            <div class="inv-bank">
-              <strong>Bank:</strong> Monzo<br/>
-              <strong>Sort Code:</strong> 04-00-03<br/>
-              <strong>Account No:</strong> 01719980
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.getElementById('invoice-overlay').classList.add('show');
+      buildAndShowInvoice(shifts, true);
     } catch {
       showToast('Failed to load shifts', 'error');
     }
@@ -989,8 +1030,10 @@
 
   function closeInvoice() {
     document.getElementById('invoice-overlay').classList.remove('show');
-    document.getElementById('mark-submitted-btn').textContent = 'Mark as Submitted';
-    document.getElementById('mark-submitted-btn').disabled = false;
+    const markBtn = document.getElementById('mark-submitted-btn');
+    markBtn.style.display = 'inline-block';
+    markBtn.textContent = 'Mark as Submitted';
+    markBtn.disabled = false;
   }
 
   // ── HELPERS ───────────────────────────────────────────────
