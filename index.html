@@ -995,8 +995,10 @@
 
   // ── HELPERS ───────────────────────────────────────────────
   function formatDate(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!dateStr) return '—';
+    const [y, m, d] = String(dateStr).split('T')[0].split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
   }
 
   function formatTime(timeStr) {
