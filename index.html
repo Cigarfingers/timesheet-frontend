@@ -597,6 +597,15 @@
       .invoice-toolbar { display: none !important; }
       .invoice-doc { max-width: 100%; }
     }
+
+    /* ── CAPTURE MODE (prevents right-side cropping on iPhone) ── */
+    body.is-capturing .invoice-doc {
+      width: 900px !important;
+      max-width: none !important;
+    }
+    body.is-capturing #invoice-overlay {
+      overflow: visible !important;
+    }
   </style>
 </head>
 <body>
@@ -1161,22 +1170,66 @@
     }
   }
 
+  /* saveAsImage() is replaced in PART 3 */
   async function saveAsImage() {
     const doc = document.getElementById('invoice-doc');
     showToast('Generating image...', '');
+
+    const CAPTURE_WIDTH = 900;
+
+    // Enable capture mode to prevent iPhone cropping the right panel
+    document.body.classList.add('is-capturing');
+
+    // Let layout/fonts settle
+    await new Promise(r => setTimeout(r, 150));
+    if (document.fonts?.ready) { try { await document.fonts.ready; } catch {} }
+
+    // Temporarily force width inline (belt & braces)
+    const prevWidth = doc.style.width;
+    const prevMaxWidth = doc.style.maxWidth;
+    doc.style.width = CAPTURE_WIDTH + 'px';
+    doc.style.maxWidth = 'none';
+
     try {
+      const height = Math.ceil(doc.scrollHeight);
+
       const canvas = await html2canvas(doc, {
-        scale: 2,           // retina quality
+        scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+
+        // Capture full desktop-width layout
+        width: CAPTURE_WIDTH,
+        windowWidth: CAPTURE_WIDTH,
+        height: height,
+        windowHeight: height,
+        scrollX: 0,
+        scrollY: 0
       });
-      const link = document.createElement('a');
-      link.download = 'timesheet.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      showToast('Image saved ✓', 'success');
-    } catch {
+
+      const dataUrl = canvas.toDataURL('image/png');
+
+      // iPhone Photos-friendly: open image so user can Share → Save Image
+      const w = window.open('');
+      w.document.write(`
+        <!doctype html>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Timesheet</title>
+        <img src="${dataUrl}" style="width:100%;height:auto;display:block" />
+        <div style="font-family:system-ui;padding:12px">
+          On iPhone: tap Share → <b>Save Image</b>
+        </div>
+      `);
+
+      showToast('Image ready ✓', 'success');
+    } catch (e) {
+      console.error(e);
       showToast('Could not save image', 'error');
+    } finally {
+      // Restore original styles
+      doc.style.width = prevWidth;
+      doc.style.maxWidth = prevMaxWidth;
+      document.body.classList.remove('is-capturing');
     }
   }
 
@@ -1216,45 +1269,107 @@
   const ACCOUNTS_EMAIL = 'amorgan_cov@hotmail.com'; // ← change to accounts dept email
 
   async function emailTimesheet() {
-    const doc = document.getElementById('invoice-doc');
+  const doc = document.getElementById('invoice-doc');
+  showToast('Preparing email...', '');
 
-    // Step 1 — save the image
-    showToast('Saving timesheet image...', '');
-    try {
-      const canvas = await html2canvas(doc, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      });
-      const link = document.createElement('a');
-      link.download = 'timesheet.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch {
-      showToast('Could not save image', 'error');
-      return;
-    }
+  const CAPTURE_WIDTH = 900;
 
-    // Step 2 — open email after a short delay (let the download trigger first)
-    await new Promise(r => setTimeout(r, 1200));
+  // Enable capture mode to prevent iPhone cropping the right panel
+  document.body.classList.add('is-capturing');
 
-    const dateRange = doc.querySelector('.inv-total-banner')?.textContent?.trim()
-      .replace('Total Pay Due', '').trim() || 'Timesheet';
+  // Let layout/fonts settle
+  await new Promise(r => setTimeout(r, 150));
+  if (document.fonts?.ready) { try { await document.fonts.ready; } catch {} }
+
+  // Temporarily force width inline (belt & braces)
+  const prevWidth = doc.style.width;
+  const prevMaxWidth = doc.style.maxWidth;
+  doc.style.width = CAPTURE_WIDTH + 'px';
+  doc.style.maxWidth = 'none';
+
+  try {
+    const height = Math.ceil(doc.scrollHeight);
+
+    const canvas = await html2canvas(doc, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+
+      // Capture full desktop-width layout
+      width: CAPTURE_WIDTH,
+      windowWidth: CAPTURE_WIDTH,
+      height: height,
+      windowHeight: height,
+      scrollX: 0,
+      scrollY: 0
+    });
+
+    const dataUrl = canvas.toDataURL('image/png');
+
+    // Build email subject/body from invoice
+    const banner = doc.querySelector('.inv-total-banner')?.textContent || '';
+    const dateRange = banner.replace('Total Pay Due', '').trim() || 'Timesheet';
     const totalEl = doc.querySelectorAll('.inv-total-cell')[2];
     const total = totalEl ? totalEl.textContent.replace('Total','').trim() : '';
 
     const subject = encodeURIComponent(`Timesheet — ${dateRange}`);
     const body = encodeURIComponent(
-      `Hi,\n\nPlease find my timesheet attached for the period ${dateRange}.\n\nTotal: ${total}\n\nKind regards,\nLibby Morgan`
+      `Hi,\n\nPlease find my timesheet attached for the period ${dateRange}.\n\nTotal: ${total}\n\nKind regards,\nLibby Morgan\n\n(Attached: timesheet image saved from My Hours app)`
     );
 
-    window.location.href = `mailto:${ACCOUNTS_EMAIL}?subject=${subject}&body=${body}`;
+    const mailtoUrl = `mailto:${ACCOUNTS_EMAIL}?subject=${subject}&body=${body}`;
 
-    // Step 3 — remind her to attach the image
-    setTimeout(() => {
-      showToast('📎 Attach the saved timesheet.png before sending!', 'success');
-    }, 2500);
+    // Open a new tab with the image + a button that opens the email
+    const w = window.open('');
+    w.document.write(`
+      <!doctype html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Email Timesheet</title>
+        <style>
+          body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; padding: 12px; }
+          .card { max-width: 720px; margin: 0 auto; }
+          img { width: 100%; height: auto; display: block; border: 1px solid #ddd; }
+          .box { margin-top: 12px; padding: 12px; border: 1px solid #ddd; }
+          .btn {
+            display: inline-block;
+            padding: 12px 14px;
+            margin-top: 10px;
+            background: #1B4F8A;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            border-radius: 10px;
+          }
+          .step { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <img src="${dataUrl}" alt="Timesheet" />
+          <div class="box">
+            <div class="step"><b>1)</b> Tap Share → <b>Save Image</b> (saves to Photos)</div>
+            <div class="step"><b>2)</b> Then tap the button below to open the email</div>
+            <a class="btn" href="${mailtoUrl}">Open Email</a>
+            <div class="step" style="margin-top:10px"><b>3)</b> In Mail, attach the saved image from Photos</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    showToast('Image ready — save then email ✓', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('Could not prepare email', 'error');
+  } finally {
+    // Restore original styles
+    doc.style.width = prevWidth;
+    doc.style.maxWidth = prevMaxWidth;
+    document.body.classList.remove('is-capturing');
   }
+}
 
   // ── PUSH NOTIFICATIONS ────────────────────────────────────
   // Working days: 0=Sun, 1=Mon, 2=Tue, 4=Thu, 0=Sun
