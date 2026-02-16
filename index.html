@@ -1211,8 +1211,29 @@
   // ── EMAIL TIMESHEET ───────────────────────────────────────
   const ACCOUNTS_EMAIL = 'amorgan_cov@hotmail.com'; // ← change to accounts dept email
 
-  function emailTimesheet() {
+  async function emailTimesheet() {
     const doc = document.getElementById('invoice-doc');
+
+    // Step 1 — save the image
+    showToast('Saving timesheet image...', '');
+    try {
+      const canvas = await html2canvas(doc, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      link.download = 'timesheet.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch {
+      showToast('Could not save image', 'error');
+      return;
+    }
+
+    // Step 2 — open email after a short delay (let the download trigger first)
+    await new Promise(r => setTimeout(r, 1200));
+
     const dateRange = doc.querySelector('.inv-total-banner')?.textContent?.trim()
       .replace('Total Pay Due', '').trim() || 'Timesheet';
     const totalEl = doc.querySelectorAll('.inv-total-cell')[2];
@@ -1220,11 +1241,15 @@
 
     const subject = encodeURIComponent(`Timesheet — ${dateRange}`);
     const body = encodeURIComponent(
-      `Hi,\n\nPlease find attached my timesheet for the period ${dateRange}.\n\nTotal hours and pay: ${total}\n\nKind regards,\nLibby Morgan\n\nNote: Please save the timesheet image attached separately and include it with this email.`
+      `Hi,\n\nPlease find my timesheet attached for the period ${dateRange}.\n\nTotal: ${total}\n\nKind regards,\nLibby Morgan`
     );
 
     window.location.href = `mailto:${ACCOUNTS_EMAIL}?subject=${subject}&body=${body}`;
-    showToast('Opening email app...', 'success');
+
+    // Step 3 — remind her to attach the image
+    setTimeout(() => {
+      showToast('📎 Attach the saved timesheet.png before sending!', 'success');
+    }, 2500);
   }
 
   // ── PUSH NOTIFICATIONS ────────────────────────────────────
