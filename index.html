@@ -523,6 +523,68 @@
       letter-spacing: 0.06em;
     }
 
+    /* ── CONFIRM MODAL ── */
+    .confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,22,18,0.6);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .confirm-overlay.show { display: flex; }
+    .confirm-box {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      padding: 2rem;
+      max-width: 320px;
+      width: 100%;
+    }
+    .confirm-box p {
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    .confirm-box .confirm-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    /* ── PWA INSTALL BANNER ── */
+    .pwa-banner {
+      display: none;
+      background: var(--blue);
+      color: #fff;
+      padding: 0.85rem 1.25rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      line-height: 1.5;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 500;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .pwa-banner.show { display: flex; }
+    .pwa-banner button {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      padding: 0.4rem 0.85rem;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     #app-screen { display: none; }
 
     @media print {
@@ -645,11 +707,32 @@
     <button class="btn btn-ghost" onclick="closeInvoice()">✕ Close</button>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="saveAsImage()">📱 Save as Image</button>
+      <button class="btn btn-ghost" onclick="emailTimesheet()" id="email-btn">✉ Email to Accounts</button>
       <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
       <button class="btn btn-blue" id="mark-submitted-btn" onclick="markSubmitted()">Mark as Submitted</button>
     </div>
   </div>
   <div class="invoice-doc" id="invoice-doc"></div>
+</div>
+
+<!-- ── CONFIRM MODAL ── -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <p id="confirm-message">Are you sure?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="confirmCancel()">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--accent)" onclick="confirmOk()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PWA INSTALL BANNER ── -->
+<div class="pwa-banner" id="pwa-banner">
+  <span>📲 Add to Home Screen for shift reminders to work</span>
+  <div style="display:flex;gap:0.5rem">
+    <button onclick="showPwaInstructions()">How?</button>
+    <button onclick="dismissPwaBanner()">✕</button>
+  </div>
 </div>
 
 <!-- ── TOAST ── -->
@@ -695,6 +778,7 @@
       }
 
       init();
+      initNotifications();
     } catch {
       const err = document.getElementById('login-error');
       err.style.display = 'block';
@@ -772,15 +856,35 @@
     }
   }
 
-  // ── DELETE SHIFT ──────────────────────────────────────────
-  async function deleteShift(id) {
-    try {
-      await fetch(`${API_URL}/shifts/${id}`, { method: 'DELETE' });
-      showToast('Shift removed');
-      await loadShifts();
-    } catch {
-      showToast('Failed to delete', 'error');
-    }
+  // ── DELETE SHIFT (with confirmation) ─────────────────────
+  let confirmCallback = null;
+
+  function showConfirm(message, onOk) {
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-overlay').classList.add('show');
+    confirmCallback = onOk;
+  }
+
+  function confirmOk() {
+    document.getElementById('confirm-overlay').classList.remove('show');
+    if (confirmCallback) { confirmCallback(); confirmCallback = null; }
+  }
+
+  function confirmCancel() {
+    document.getElementById('confirm-overlay').classList.remove('show');
+    confirmCallback = null;
+  }
+
+  async function deleteShift(id, dateStr) {
+    showConfirm(`Remove shift on ${dateStr}? This cannot be undone.`, async () => {
+      try {
+        await fetch(`${API_URL}/shifts/${id}`, { method: 'DELETE' });
+        showToast('Shift removed');
+        await loadShifts();
+      } catch {
+        showToast('Failed to delete', 'error');
+      }
+    });
   }
 
   // ── RENDER ALL ────────────────────────────────────────────
@@ -936,7 +1040,7 @@
           }
         </td>
         ${canDelete && !s.submitted
-          ? `<td><button class="btn btn-danger" onclick="deleteShift(${s.id})">✕</button></td>`
+          ? `<td><button class="btn btn-danger" onclick="deleteShift(${s.id}, '${formatDate(s.shift_date)}')">✕</button></td>`
           : '<td></td>'
         }
       </tr>
@@ -1102,6 +1206,123 @@
     t.textContent = msg;
     t.className = 'toast' + (type ? ` ${type}` : '') + ' show';
     setTimeout(() => { t.className = 'toast'; }, 2800);
+  }
+
+  // ── EMAIL TIMESHEET ───────────────────────────────────────
+  const ACCOUNTS_EMAIL = 'amorgan_cov@hotmail.com'; // ← change to accounts dept email
+
+  function emailTimesheet() {
+    const doc = document.getElementById('invoice-doc');
+    const dateRange = doc.querySelector('.inv-total-banner')?.textContent?.trim()
+      .replace('Total Pay Due', '').trim() || 'Timesheet';
+    const totalEl = doc.querySelectorAll('.inv-total-cell')[2];
+    const total = totalEl ? totalEl.textContent.replace('Total','').trim() : '';
+
+    const subject = encodeURIComponent(`Timesheet — ${dateRange}`);
+    const body = encodeURIComponent(
+      `Hi,\n\nPlease find attached my timesheet for the period ${dateRange}.\n\nTotal hours and pay: ${total}\n\nKind regards,\nLibby Morgan\n\nNote: Please save the timesheet image attached separately and include it with this email.`
+    );
+
+    window.location.href = `mailto:${ACCOUNTS_EMAIL}?subject=${subject}&body=${body}`;
+    showToast('Opening email app...', 'success');
+  }
+
+  // ── PUSH NOTIFICATIONS ────────────────────────────────────
+  // Working days: 0=Sun, 1=Mon, 2=Tue, 4=Thu, 0=Sun
+  const REMINDER_DAYS = [0, 1, 2, 4]; // Sun, Mon, Tue, Thu
+  const REMINDER_HOUR = 14; // 2pm
+  const REMINDER_MIN  = 0;
+
+  async function requestNotifications() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      scheduleReminders();
+      showToast('Reminders enabled ✓', 'success');
+    }
+  }
+
+  function scheduleReminders() {
+    if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return;
+
+    // Use setTimeout to fire a notification at next reminder time today/tomorrow
+    const now = new Date();
+    const todayDay = now.getDay();
+    const isWorkDay = REMINDER_DAYS.includes(todayDay);
+    const reminderToday = new Date(now);
+    reminderToday.setHours(REMINDER_HOUR, REMINDER_MIN, 0, 0);
+
+    if (isWorkDay && now < reminderToday) {
+      // Fire today
+      const ms = reminderToday - now;
+      setTimeout(() => fireReminder(), ms);
+    } else {
+      // Find next working day
+      let daysAhead = 1;
+      while (!REMINDER_DAYS.includes((todayDay + daysAhead) % 7)) daysAhead++;
+      const next = new Date(now);
+      next.setDate(now.getDate() + daysAhead);
+      next.setHours(REMINDER_HOUR, REMINDER_MIN, 0, 0);
+      const ms = next - now;
+      setTimeout(() => fireReminder(), ms);
+    }
+  }
+
+  function fireReminder() {
+    if (Notification.permission !== 'granted') return;
+    const n = new Notification("Don't forget! 🕐", {
+      body: "Log today's shift in My Hours",
+      icon: 'https://i.postimg.cc/fLD2htMY/Screen-Shot-2026-02-16-at-01-19-09.jpg',
+      badge: 'https://i.postimg.cc/fLD2htMY/Screen-Shot-2026-02-16-at-01-19-09.jpg',
+      tag: 'shift-reminder'
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+    // Schedule next one
+    setTimeout(() => scheduleReminders(), 60000);
+  }
+
+  // ── PWA INSTALL BANNER ────────────────────────────────────
+  function checkPwaBanner() {
+    const dismissed = localStorage.getItem('pwaBannerDismissed');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone;
+    if (!dismissed && !isStandalone && userRole === 'daughter') {
+      document.getElementById('pwa-banner').classList.add('show');
+    }
+  }
+
+  function dismissPwaBanner() {
+    localStorage.setItem('pwaBannerDismissed', '1');
+    document.getElementById('pwa-banner').classList.remove('show');
+  }
+
+  function showPwaInstructions() {
+    showConfirm(
+      "To enable reminders:\n1. Tap the Share button (box with arrow) in Safari\n2. Scroll down and tap 'Add to Home Screen'\n3. Open the app from your home screen\n4. Tap 'Enable Reminders' when prompted",
+      () => {}
+    );
+    document.getElementById('confirm-message').style.whiteSpace = 'pre-line';
+    document.querySelector('.confirm-box .confirm-actions .btn-primary').textContent = 'Got it';
+    document.querySelector('.confirm-box .confirm-actions .btn-ghost').style.display = 'none';
+  }
+
+  function initNotifications() {
+    if (userRole !== 'daughter') return;
+    checkPwaBanner();
+    if (Notification.permission === 'granted') {
+      scheduleReminders();
+    } else if (Notification.permission === 'default') {
+      // Show a subtle reminder prompt after 3 seconds
+      setTimeout(() => {
+        if (!window.matchMedia('(display-mode: standalone)').matches && !window.navigator.standalone) return;
+        showConfirm(
+          "Enable shift reminders? You'll get a notification at 2pm on your working days (Mon, Tue, Thu, Sun) to remind you to log your hours.",
+          () => requestNotifications()
+        );
+        document.querySelector('.confirm-box .confirm-actions .btn-primary').textContent = 'Enable';
+        document.querySelector('.confirm-box .confirm-actions .btn-primary').style.background = 'var(--blue)';
+      }, 3000);
+    }
   }
 
   // Print styles
