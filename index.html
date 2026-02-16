@@ -400,25 +400,27 @@
       padding: 0;
       font-family: Arial, sans-serif;
       font-size: 13px;
+      border: 1px solid #D6E4F7;
     }
 
     .inv-main {
       display: grid;
       grid-template-columns: 1fr 300px;
-      align-items: stretch;
+      min-height: 500px;
     }
 
-    /* Left: shift rows */
+    /* Left: shift rows — stretch full height */
     .inv-rows-section {
-      padding: 0;
       display: flex;
       flex-direction: column;
+      border-right: 2px solid #1B4F8A;
     }
 
     .inv-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
+      flex: 1;
     }
 
     .inv-table th {
@@ -435,30 +437,28 @@
     .inv-table td {
       padding: 8px 10px;
       text-align: center;
-      border-bottom: 1px solid #e0e0e0;
     }
 
     .inv-table td:first-child { text-align: left; }
 
-    .inv-table tr:nth-child(odd) td { background: #D6E4F7; }
-    .inv-table tr:nth-child(even) td { background: #EBF2FB; }
+    .inv-table tbody tr:nth-child(odd) td { background: #D6E4F7; }
+    .inv-table tbody tr:nth-child(even) td { background: #EBF2FB; }
 
-    /* Right: summary panel — full height */
+    /* Right: summary panel — full height, evenly distributed */
     .inv-panel {
-      border-left: 2px solid #1B4F8A;
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
     }
 
     .inv-person {
-      padding: 1.25rem 1rem;
+      padding: 1rem;
       font-size: 12px;
       color: #1B4F8A;
-      line-height: 1.9;
+      line-height: 1.8;
       border-bottom: 1px solid #D6E4F7;
     }
 
-    .inv-person strong { display: block; font-weight: 700; }
+    .inv-person strong { font-weight: 700; color: #1B4F8A; }
 
     .inv-total-banner {
       background: #E02020;
@@ -473,7 +473,7 @@
     .inv-total-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      border-top: 2px solid #1B4F8A;
+      border-bottom: 1px solid #D6E4F7;
     }
 
     .inv-total-cell {
@@ -485,31 +485,31 @@
       border-right: 1px solid #D6E4F7;
     }
 
-    .inv-total-cell:last-child { border-right: none; }
+    .inv-total-cell:last-child { border-right: none; color: #E02020; }
     .inv-total-cell small { display: block; font-size: 10px; font-weight: 400; color: #7A6F65; margin-bottom: 0.2rem; }
 
     .inv-employer {
-      padding: 1.25rem 1rem;
+      padding: 1rem;
       font-size: 12px;
       color: #1B4F8A;
-      line-height: 1.9;
+      line-height: 1.8;
       text-align: center;
-      border-top: 1px solid #D6E4F7;
-      flex: 1;
+      border-bottom: 1px solid #D6E4F7;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      align-items: center;
     }
 
-    .inv-employer strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 0.25rem; }
+    .inv-employer strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 0.35rem; }
 
     .inv-bank {
       padding: 1rem;
       font-size: 11px;
-      color: #1B4F8A;
+      color: #555;
       text-align: center;
-      border-top: 2px solid #1B4F8A;
       line-height: 2;
+      border-top: 2px solid #1B4F8A;
     }
 
     .inv-bank strong { color: #1A1612; }
@@ -992,21 +992,21 @@
           <div class="inv-person">
             <strong>Name:</strong> Libby Morgan<br/>
             <strong>Address:</strong> 38, Burton Close,<br/>
-            Allesely, Coventry,<br/>CV5 9EG
+            Allesely, Coventry, CV5 9EG
           </div>
           <div class="inv-total-banner">${startDate} – ${endDate}<br/>Total Pay Due</div>
           <div class="inv-total-grid">
             <div class="inv-total-cell"><small>Hours</small>${totalH.toFixed(1)}h</div>
             <div class="inv-total-cell"><small>Rate</small>@ £15 PH</div>
-            <div class="inv-total-cell" style="color:var(--accent)"><small>Total</small>£${totalP.toFixed(2)}</div>
+            <div class="inv-total-cell"><small>Total</small>£${totalP.toFixed(2)}</div>
           </div>
           <div class="inv-employer">
-            <strong>Invoice To:</strong><br/>
+            <strong>Invoice To:</strong>
             Florence The Donke<br/>Holly Grange<br/>Holly Lane<br/>Balsall Common<br/>CV7 7EB
           </div>
           <div class="inv-bank">
-            <strong>Bank:</strong> Monzo<br/>
-            <strong>Sort Code:</strong> 04-00-03<br/>
+            <strong>Bank:</strong> Monzo &nbsp;|&nbsp;
+            <strong>Sort Code:</strong> 04-00-03 &nbsp;|&nbsp;
             <strong>Account No:</strong> 01719980
           </div>
         </div>
