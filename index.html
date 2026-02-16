@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Libby's Timesheet</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
       --cream: #FAF7F2;
@@ -393,7 +394,7 @@
 
     /* ── INVOICE DOCUMENT (matches employer format) ── */
     .invoice-doc {
-      max-width: 720px;
+      max-width: 900px;
       margin: 0 auto;
       background: #fff;
       padding: 0;
@@ -403,11 +404,16 @@
 
     .inv-main {
       display: grid;
-      grid-template-columns: 1fr 260px;
+      grid-template-columns: 1fr 300px;
+      align-items: stretch;
     }
 
     /* Left: shift rows */
-    .inv-rows-section { padding: 0; }
+    .inv-rows-section {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
 
     .inv-table {
       width: 100%;
@@ -419,7 +425,7 @@
       background: #1B4F8A;
       color: #fff;
       font-weight: 600;
-      padding: 6px 8px;
+      padding: 8px 10px;
       text-align: center;
       font-size: 11px;
     }
@@ -427,7 +433,7 @@
     .inv-table th:first-child { text-align: left; }
 
     .inv-table td {
-      padding: 6px 8px;
+      padding: 8px 10px;
       text-align: center;
       border-bottom: 1px solid #e0e0e0;
     }
@@ -437,7 +443,7 @@
     .inv-table tr:nth-child(odd) td { background: #D6E4F7; }
     .inv-table tr:nth-child(even) td { background: #EBF2FB; }
 
-    /* Right: summary panel */
+    /* Right: summary panel — full height */
     .inv-panel {
       border-left: 2px solid #1B4F8A;
       display: flex;
@@ -445,14 +451,14 @@
     }
 
     .inv-person {
-      padding: 1rem;
+      padding: 1.25rem 1rem;
       font-size: 12px;
       color: #1B4F8A;
-      line-height: 1.7;
+      line-height: 1.9;
       border-bottom: 1px solid #D6E4F7;
     }
 
-    .inv-person strong { display: block; }
+    .inv-person strong { display: block; font-weight: 700; }
 
     .inv-total-banner {
       background: #E02020;
@@ -460,8 +466,8 @@
       font-weight: 700;
       font-size: 13px;
       text-align: center;
-      padding: 0.6rem;
-      line-height: 1.4;
+      padding: 0.85rem 0.75rem;
+      line-height: 1.5;
     }
 
     .inv-total-grid {
@@ -471,36 +477,39 @@
     }
 
     .inv-total-cell {
-      padding: 0.75rem 0.5rem;
+      padding: 0.85rem 0.5rem;
       text-align: center;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 14px;
       color: #1B4F8A;
       border-right: 1px solid #D6E4F7;
     }
 
     .inv-total-cell:last-child { border-right: none; }
-    .inv-total-cell small { display: block; font-size: 10px; font-weight: 400; color: #7A6F65; }
+    .inv-total-cell small { display: block; font-size: 10px; font-weight: 400; color: #7A6F65; margin-bottom: 0.2rem; }
 
     .inv-employer {
-      padding: 1rem;
-      font-size: 11px;
+      padding: 1.25rem 1rem;
+      font-size: 12px;
       color: #1B4F8A;
-      line-height: 1.7;
+      line-height: 1.9;
       text-align: center;
       border-top: 1px solid #D6E4F7;
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
-    .inv-employer strong { display: block; font-size: 12px; }
+    .inv-employer strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 0.25rem; }
 
     .inv-bank {
-      padding: 0.75rem 1rem;
+      padding: 1rem;
       font-size: 11px;
       color: #1B4F8A;
       text-align: center;
       border-top: 2px solid #1B4F8A;
-      line-height: 1.8;
+      line-height: 2;
     }
 
     .inv-bank strong { color: #1A1612; }
@@ -634,7 +643,8 @@
 <div id="invoice-overlay">
   <div class="invoice-toolbar">
     <button class="btn btn-ghost" onclick="closeInvoice()">✕ Close</button>
-    <div style="display:flex;gap:0.5rem">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="saveAsImage()">📱 Save as Image</button>
       <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
       <button class="btn btn-blue" id="mark-submitted-btn" onclick="markSubmitted()">Mark as Submitted</button>
     </div>
@@ -1040,6 +1050,25 @@
       await loadShifts();
     } catch {
       showToast('Failed to mark submitted', 'error');
+    }
+  }
+
+  async function saveAsImage() {
+    const doc = document.getElementById('invoice-doc');
+    showToast('Generating image...', '');
+    try {
+      const canvas = await html2canvas(doc, {
+        scale: 2,           // retina quality
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      link.download = 'timesheet.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('Image saved ✓', 'success');
+    } catch {
+      showToast('Could not save image', 'error');
     }
   }
 
